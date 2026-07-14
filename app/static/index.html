@@ -1,0 +1,1303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VoiceIQ — Admin Dashboard</title>
+  <meta name="description" content="Admin dashboard for VoiceIQ outbound AI voice agent. Upload contacts, trigger calls, and review full conversation transcripts." />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0a0f1e;
+      --surface: #0f172a;
+      --surface2: #1e293b;
+      --border: rgba(99,102,241,0.18);
+      --accent: #6366f1;
+      --accent2: #8b5cf6;
+      --accent3: #06b6d4;
+      --green: #10b981;
+      --red: #ef4444;
+      --yellow: #f59e0b;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --glow: rgba(99,102,241,0.25);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ---- animated background ---- */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 80% 60% at 10% 20%, rgba(99,102,241,0.12) 0%, transparent 70%),
+        radial-gradient(ellipse 60% 50% at 90% 80%, rgba(139,92,246,0.10) 0%, transparent 70%),
+        radial-gradient(ellipse 40% 40% at 50% 50%, rgba(6,182,212,0.06) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ---- layout ---- */
+    .sidebar {
+      position: fixed;
+      top: 0; left: 0;
+      width: 240px;
+      height: 100vh;
+      background: rgba(15,23,42,0.95);
+      border-right: 1px solid var(--border);
+      backdrop-filter: blur(20px);
+      display: flex;
+      flex-direction: column;
+      padding: 24px 0;
+      z-index: 100;
+    }
+
+    .logo {
+      padding: 0 24px 24px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 16px;
+    }
+    .logo h2 {
+      font-size: 1.4rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6, #06b6d4);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      letter-spacing: -0.5px;
+    }
+    .logo p { font-size: 0.72rem; color: var(--muted); margin-top: 2px; letter-spacing: 0.5px; text-transform: uppercase; }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 24px;
+      cursor: pointer;
+      color: var(--muted);
+      font-size: 0.88rem;
+      font-weight: 500;
+      transition: all 0.2s;
+      border-left: 3px solid transparent;
+      user-select: none;
+    }
+    .nav-item:hover { color: var(--text); background: rgba(99,102,241,0.08); }
+    .nav-item.active {
+      color: var(--accent);
+      background: rgba(99,102,241,0.12);
+      border-left-color: var(--accent);
+    }
+    .nav-item .icon { font-size: 1.1rem; width: 20px; text-align: center; }
+
+    .nav-section {
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--muted);
+      padding: 16px 24px 6px;
+    }
+
+    .sidebar-footer {
+      margin-top: auto;
+      padding: 16px 24px;
+      border-top: 1px solid var(--border);
+    }
+    .health-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      padding: 6px 12px;
+      border-radius: 99px;
+      background: rgba(16,185,129,0.15);
+      color: var(--green);
+    }
+    .health-pill.offline { background: rgba(239,68,68,0.15); color: var(--red); }
+    .health-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--green);
+      animation: pulse 2s infinite;
+    }
+    .health-dot.offline { background: var(--red); animation: none; }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    .main {
+      margin-left: 240px;
+      padding: 32px;
+      position: relative;
+      z-index: 1;
+      min-height: 100vh;
+    }
+
+    /* ---- page sections ---- */
+    .page-section { display: none; }
+    .page-section.active { display: block; }
+
+    /* ---- top bar ---- */
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 32px;
+    }
+    .topbar h1 { font-size: 1.7rem; font-weight: 800; letter-spacing: -0.5px; }
+    .topbar p { color: var(--muted); font-size: 0.88rem; margin-top: 4px; }
+    .topbar-actions { display: flex; gap: 10px; align-items: center; }
+
+    /* ---- cards ---- */
+    .card {
+      background: rgba(15,23,42,0.7);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 24px;
+      backdrop-filter: blur(20px);
+      position: relative;
+      overflow: hidden;
+    }
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(99,102,241,0.4), transparent);
+    }
+
+    /* ---- stat cards ---- */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+    .stat-card {
+      background: rgba(15,23,42,0.7);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 20px;
+      backdrop-filter: blur(20px);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .stat-card:hover { transform: translateY(-2px); box-shadow: 0 8px 30px var(--glow); }
+    .stat-icon { font-size: 1.6rem; margin-bottom: 12px; }
+    .stat-value { font-size: 2rem; font-weight: 800; }
+    .stat-label { font-size: 0.78rem; color: var(--muted); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .stat-card.blue .stat-value { color: #6366f1; }
+    .stat-card.green .stat-value { color: #10b981; }
+    .stat-card.yellow .stat-value { color: #f59e0b; }
+    .stat-card.red .stat-value { color: #ef4444; }
+
+    /* ---- buttons ---- */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 18px;
+      border-radius: 10px;
+      font-size: 0.88rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s;
+      font-family: 'Inter', sans-serif;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      color: white;
+      box-shadow: 0 4px 20px rgba(99,102,241,0.35);
+    }
+    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 25px rgba(99,102,241,0.5); }
+    .btn-success {
+      background: linear-gradient(135deg, #10b981, #059669);
+      color: white;
+      box-shadow: 0 4px 20px rgba(16,185,129,0.3);
+    }
+    .btn-success:hover { transform: translateY(-1px); box-shadow: 0 6px 25px rgba(16,185,129,0.45); }
+    .btn-danger {
+      background: linear-gradient(135deg, #ef4444, #dc2626);
+      color: white;
+    }
+    .btn-secondary {
+      background: rgba(99,102,241,0.12);
+      color: var(--accent);
+      border: 1px solid rgba(99,102,241,0.3);
+    }
+    .btn-secondary:hover { background: rgba(99,102,241,0.2); }
+    .btn-ghost {
+      background: rgba(148,163,184,0.08);
+      color: var(--muted);
+      border: 1px solid rgba(148,163,184,0.15);
+    }
+    .btn-ghost:hover { color: var(--text); background: rgba(148,163,184,0.15); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important; }
+
+    /* ---- badges ---- */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 10px;
+      border-radius: 99px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+    .badge-green { background: rgba(16,185,129,0.15); color: #10b981; }
+    .badge-yellow { background: rgba(245,158,11,0.15); color: #f59e0b; }
+    .badge-blue { background: rgba(99,102,241,0.15); color: #818cf8; }
+    .badge-red { background: rgba(239,68,68,0.15); color: #ef4444; }
+    .badge-gray { background: rgba(148,163,184,0.12); color: var(--muted); }
+    .badge-cyan { background: rgba(6,182,212,0.15); color: #22d3ee; }
+
+    /* ---- forms ---- */
+    .form-group { margin-bottom: 18px; }
+    .form-group label {
+      display: block;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--muted);
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .form-group input, .form-group select {
+      width: 100%;
+      background: rgba(15,23,42,0.8);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 11px 14px;
+      color: var(--text);
+      font-size: 0.9rem;
+      font-family: 'Inter', sans-serif;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      outline: none;
+    }
+    .form-group input:focus, .form-group select:focus {
+      border-color: rgba(99,102,241,0.5);
+      box-shadow: 0 0 0 3px rgba(99,102,241,0.12);
+    }
+    .form-group select option { background: #1e293b; }
+
+    /* ---- file drop zone ---- */
+    .drop-zone {
+      border: 2px dashed rgba(99,102,241,0.3);
+      border-radius: 14px;
+      padding: 36px 24px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: rgba(99,102,241,0.04);
+      position: relative;
+    }
+    .drop-zone:hover, .drop-zone.drag-over {
+      border-color: var(--accent);
+      background: rgba(99,102,241,0.10);
+    }
+    .drop-zone input[type="file"] {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+      width: 100%;
+      height: 100%;
+    }
+    .drop-icon { font-size: 2.5rem; margin-bottom: 10px; }
+    .drop-text { font-size: 0.9rem; color: var(--muted); }
+    .drop-text strong { color: var(--text); }
+    .drop-hint { font-size: 0.78rem; color: var(--muted); margin-top: 6px; }
+    .file-selected { color: var(--green); font-weight: 600; margin-top: 8px; font-size: 0.88rem; }
+
+    /* ---- tables ---- */
+    .table-wrap { overflow-x: auto; border-radius: 12px; }
+    table { width: 100%; border-collapse: collapse; }
+    thead th {
+      padding: 12px 16px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--muted);
+      background: rgba(15,23,42,0.6);
+      border-bottom: 1px solid var(--border);
+      text-align: left;
+    }
+    tbody tr {
+      border-bottom: 1px solid rgba(99,102,241,0.07);
+      transition: background 0.15s;
+    }
+    tbody tr:hover { background: rgba(99,102,241,0.05); }
+    tbody td {
+      padding: 13px 16px;
+      font-size: 0.875rem;
+      color: var(--text);
+      vertical-align: middle;
+    }
+    tbody td.muted { color: var(--muted); font-size: 0.82rem; }
+
+    /* ---- section headers ---- */
+    .section-title {
+      font-size: 1rem;
+      font-weight: 700;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .section-title span { color: var(--muted); font-size: 0.82rem; font-weight: 400; }
+
+    /* ---- transcript panel ---- */
+    .transcript-panel {
+      background: rgba(6,182,212,0.04);
+      border: 1px solid rgba(6,182,212,0.15);
+      border-radius: 14px;
+      padding: 20px;
+      margin-top: 12px;
+      max-height: 420px;
+      overflow-y: auto;
+    }
+    .qa-turn { margin-bottom: 18px; }
+    .qa-turn:last-child { margin-bottom: 0; }
+    .qa-turn-num {
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+    }
+    .qa-q {
+      background: rgba(99,102,241,0.10);
+      border-left: 3px solid #6366f1;
+      border-radius: 0 10px 10px 0;
+      padding: 10px 14px;
+      margin-bottom: 6px;
+      font-size: 0.875rem;
+    }
+    .qa-q label { font-size: 0.7rem; font-weight: 700; color: #818cf8; display: block; margin-bottom: 4px; text-transform: uppercase; }
+    .qa-a {
+      background: rgba(6,182,212,0.08);
+      border-left: 3px solid #06b6d4;
+      border-radius: 0 10px 10px 0;
+      padding: 10px 14px;
+      font-size: 0.875rem;
+    }
+    .qa-a label { font-size: 0.7rem; font-weight: 700; color: #22d3ee; display: block; margin-bottom: 4px; text-transform: uppercase; }
+
+    /* ---- modal ---- */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      backdrop-filter: blur(8px);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: #0f172a;
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 32px;
+      width: 90%;
+      max-width: 700px;
+      max-height: 85vh;
+      overflow-y: auto;
+      position: relative;
+      box-shadow: 0 30px 80px rgba(0,0,0,0.5);
+    }
+    .modal-close {
+      position: absolute;
+      top: 16px; right: 16px;
+      background: rgba(148,163,184,0.1);
+      border: none;
+      border-radius: 8px;
+      padding: 6px 12px;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 1rem;
+      font-family: 'Inter', sans-serif;
+    }
+    .modal-close:hover { background: rgba(239,68,68,0.15); color: var(--red); }
+    .modal h3 { font-size: 1.1rem; font-weight: 700; margin-bottom: 6px; }
+    .modal .sub { font-size: 0.82rem; color: var(--muted); margin-bottom: 20px; }
+
+    /* ---- toast ---- */
+    .toast-area {
+      position: fixed;
+      bottom: 24px; right: 24px;
+      z-index: 999;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .toast {
+      background: rgba(15,23,42,0.95);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px 18px;
+      font-size: 0.85rem;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+      animation: slideIn 0.3s ease;
+      backdrop-filter: blur(20px);
+      min-width: 280px;
+    }
+    .toast.success { border-color: rgba(16,185,129,0.3); }
+    .toast.error { border-color: rgba(239,68,68,0.3); }
+    .toast.info { border-color: rgba(99,102,241,0.3); }
+    @keyframes slideIn {
+      from { transform: translateX(60px); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+
+    /* ---- progress bar ---- */
+    .progress-bar {
+      height: 4px;
+      background: rgba(99,102,241,0.15);
+      border-radius: 99px;
+      overflow: hidden;
+      margin-top: 8px;
+    }
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #6366f1, #8b5cf6);
+      border-radius: 99px;
+      transition: width 0.5s ease;
+    }
+
+    /* ---- search bar ---- */
+    .search-row {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 18px;
+      flex-wrap: wrap;
+    }
+    .search-row input, .search-row select {
+      background: rgba(15,23,42,0.8);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 9px 14px;
+      color: var(--text);
+      font-size: 0.875rem;
+      font-family: 'Inter', sans-serif;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .search-row input { flex: 1; min-width: 200px; }
+    .search-row input:focus, .search-row select:focus { border-color: rgba(99,102,241,0.5); }
+    .search-row select option { background: #1e293b; }
+
+    /* ---- separator ---- */
+    .sep { height: 1px; background: var(--border); margin: 24px 0; }
+
+    /* ---- empty state ---- */
+    .empty {
+      text-align: center;
+      padding: 48px 24px;
+      color: var(--muted);
+    }
+    .empty-icon { font-size: 3rem; margin-bottom: 12px; }
+    .empty p { font-size: 0.9rem; }
+
+    /* ---- loading spinner ---- */
+    .spinner {
+      display: inline-block;
+      width: 16px; height: 16px;
+      border: 2px solid rgba(255,255,255,0.2);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ---- grid ---- */
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    @media (max-width: 900px) { .two-col { grid-template-columns: 1fr; } }
+
+    /* ---- campaign card ---- */
+    .campaign-card {
+      background: rgba(15,23,42,0.5);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 18px 20px;
+      margin-bottom: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .campaign-card:hover { border-color: rgba(99,102,241,0.4); background: rgba(99,102,241,0.06); transform: translateX(4px); }
+    .campaign-card.selected { border-color: var(--accent); background: rgba(99,102,241,0.10); }
+    .campaign-card .meta { font-size: 0.78rem; color: var(--muted); margin-top: 4px; }
+    .campaign-card .name { font-weight: 700; }
+    .campaign-card .actions { display: flex; gap: 8px; flex-shrink: 0; }
+
+    /* ---- scrollbar ---- */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(99,102,241,0.3); border-radius: 99px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(99,102,241,0.5); }
+  </style>
+</head>
+<body>
+
+<!-- ===== SIDEBAR ===== -->
+<nav class="sidebar">
+  <div class="logo">
+    <h2>🎙 VoiceIQ</h2>
+    <p>Outbound AI Voice Agent</p>
+  </div>
+
+  <div class="nav-section">Main</div>
+  <div class="nav-item active" onclick="showSection('dashboard', this)">
+    <span class="icon">📊</span> Dashboard
+  </div>
+  <div class="nav-item" onclick="showSection('campaigns', this)">
+    <span class="icon">📋</span> Campaigns
+  </div>
+  <div class="nav-item" onclick="showSection('import', this)">
+    <span class="icon">📥</span> Import Contacts
+  </div>
+
+  <div class="nav-section">Data</div>
+  <div class="nav-item" onclick="showSection('calls', this)">
+    <span class="icon">📞</span> All Calls
+  </div>
+  <div class="nav-item" onclick="showSection('transcripts', this)">
+    <span class="icon">💬</span> Transcripts
+  </div>
+
+  <div class="sidebar-footer">
+    <div class="health-pill" id="sideHealthPill">
+      <div class="health-dot" id="sideHealthDot"></div>
+      <span id="sideHealthText">Checking…</span>
+    </div>
+  </div>
+</nav>
+
+<!-- ===== MAIN ===== -->
+<main class="main">
+
+  <!-- ======= DASHBOARD ======= -->
+  <section class="page-section active" id="sec-dashboard">
+    <div class="topbar">
+      <div>
+        <h1>Dashboard</h1>
+        <p>Overview of your outbound calling activity</p>
+      </div>
+      <div class="topbar-actions">
+        <button class="btn btn-ghost" onclick="refreshDashboard()">⟳ Refresh</button>
+        <button class="btn btn-primary" onclick="showSection('import', document.querySelector('.nav-item:nth-child(6)'))">+ New Campaign</button>
+      </div>
+    </div>
+
+    <div class="stats-grid" id="statsGrid">
+      <div class="stat-card blue"><div class="stat-icon">📋</div><div class="stat-value" id="st-campaigns">—</div><div class="stat-label">Campaigns</div></div>
+      <div class="stat-card green"><div class="stat-icon">✅</div><div class="stat-value" id="st-called">—</div><div class="stat-label">Calls Made</div></div>
+      <div class="stat-card yellow"><div class="stat-icon">⏳</div><div class="stat-value" id="st-pending">—</div><div class="stat-label">Pending</div></div>
+      <div class="stat-card red"><div class="stat-icon">❌</div><div class="stat-value" id="st-failed">—</div><div class="stat-label">Failed</div></div>
+    </div>
+
+    <div class="two-col">
+      <div class="card">
+        <div class="section-title">📞 Active Calls <span id="activeRefreshTag">Auto-refreshes every 10s</span></div>
+        <div id="activeCallsWrap"><div class="empty"><div class="empty-icon">📡</div><p>Loading…</p></div></div>
+      </div>
+      <div class="card">
+        <div class="section-title">🏁 Recent Completed <span></span></div>
+        <div id="recentCompletedWrap"><div class="empty"><div class="empty-icon">📄</div><p>Loading…</p></div></div>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ======= CAMPAIGNS ======= -->
+  <section class="page-section" id="sec-campaigns">
+    <div class="topbar">
+      <div>
+        <h1>Campaigns</h1>
+        <p>Manage contact lists and trigger outbound calls</p>
+      </div>
+    </div>
+
+    <div class="two-col">
+      <div>
+        <div class="card" style="margin-bottom:20px;">
+          <div class="section-title">📋 Your Campaigns</div>
+          <div id="campaignList"><div class="empty"><div class="empty-icon">📋</div><p>No campaigns yet. <a href="#" onclick="showSection('import', null)" style="color:var(--accent)">Import contacts</a> to create one.</p></div></div>
+        </div>
+      </div>
+      <div>
+        <div class="card" id="campaignDetailCard" style="display:none;">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;">
+            <div>
+              <div class="section-title" id="campaignDetailTitle">Campaign Detail</div>
+              <div style="font-size:0.82rem;color:var(--muted);" id="campaignDetailMeta"></div>
+            </div>
+            <button class="btn btn-success" id="callAllBtn" onclick="callAllContacts()">📞 Call All</button>
+          </div>
+
+          <div class="progress-bar" style="margin-bottom:16px;"><div class="progress-fill" id="campaignProgress" style="width:0%"></div></div>
+
+          <div class="search-row">
+            <input id="contactSearch" placeholder="🔍 Search name or phone…" oninput="filterContacts()" />
+            <select id="contactStatusFilter" onchange="filterContacts()">
+              <option value="all">All statuses</option>
+              <option value="pending">Pending</option>
+              <option value="calling">Calling</option>
+              <option value="called">Called</option>
+              <option value="failed">Failed</option>
+            </select>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead><tr>
+                <th>Name</th>
+                <th>Phone</th>
+                <th>Status</th>
+                <th>Turns</th>
+                <th></th>
+              </tr></thead>
+              <tbody id="contactTableBody"></tbody>
+            </table>
+          </div>
+          <div id="contactsEmpty" class="empty" style="display:none;"><div class="empty-icon">👤</div><p>No contacts found.</p></div>
+        </div>
+
+        <div class="card" id="noCampaignCard">
+          <div class="empty"><div class="empty-icon">👈</div><p>Select a campaign from the list to view contacts and trigger calls.</p></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ======= IMPORT ======= -->
+  <section class="page-section" id="sec-import">
+    <div class="topbar">
+      <div>
+        <h1>Import Contacts</h1>
+        <p>Upload an Excel (.xlsx) or CSV file — the AI will automatically call each number</p>
+      </div>
+    </div>
+
+    <div class="two-col">
+      <div class="card">
+        <div class="section-title">📥 Upload Contact File</div>
+
+        <div class="form-group">
+          <label>Campaign Name</label>
+          <input id="campaignName" placeholder="e.g. July Follow-ups, Interview Batch 1…" />
+        </div>
+
+        <div class="form-group">
+          <label>Contact File (Excel or CSV)</label>
+          <div class="drop-zone" id="dropZone">
+            <input type="file" id="fileInput" accept=".csv,.xlsx,.xls" onchange="onFileSelect(this)" />
+            <div class="drop-icon">📁</div>
+            <div class="drop-text"><strong>Drag & drop</strong> or click to browse</div>
+            <div class="drop-hint">Supports: .xlsx, .xls, .csv — Columns: name, phone</div>
+            <div class="file-selected" id="fileSelectedLabel" style="display:none;"></div>
+          </div>
+        </div>
+
+        <button class="btn btn-primary" id="importBtn" onclick="importContacts()" style="width:100%;justify-content:center;">
+          📤 Import & Create Campaign
+        </button>
+        <div id="importResult" style="margin-top:14px;"></div>
+      </div>
+
+      <div class="card">
+        <div class="section-title">📌 File Format Guide</div>
+        <p style="color:var(--muted);font-size:0.875rem;line-height:1.7;margin-bottom:16px;">
+          Your Excel or CSV file needs at least a <strong style="color:var(--text)">phone</strong> column. A <strong style="color:var(--text)">name</strong> column is optional but recommended.
+        </p>
+
+        <div style="background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.2);border-radius:10px;padding:16px;font-family:monospace;font-size:0.82rem;margin-bottom:16px;">
+          <div style="color:var(--accent);font-weight:700;margin-bottom:8px;">✅ Accepted column names:</div>
+          <div style="color:var(--text);">name, full_name, Full Name</div>
+          <div style="color:var(--text);">phone, Phone, mobile, Mobile</div>
+          <div style="color:var(--text);">mobile_number, phone_number</div>
+          <div style="color:var(--text);">contact, number, cell, tel</div>
+        </div>
+
+        <div style="background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.2);border-radius:10px;padding:16px;font-size:0.82rem;">
+          <div style="color:var(--green);font-weight:700;margin-bottom:8px;">📋 Example CSV:</div>
+          <pre style="color:var(--text);white-space:pre-wrap;">name,phone
+Ravi Kumar,+919876543210
+Priya Sharma,+919123456789
+Amit Singh,9001234567</pre>
+        </div>
+
+        <div class="sep"></div>
+
+        <div style="font-size:0.82rem;color:var(--muted);line-height:1.7;">
+          <div style="margin-bottom:6px;">📞 <strong style="color:var(--text);">After importing</strong>, go to <em>Campaigns</em> and click <em>Call All</em> to trigger real outbound calls.</div>
+          <div>🔑 <strong style="color:var(--text);">Twilio credentials</strong> must be set as env vars: <code style="color:var(--accent);">TWILIO_ACCOUNT_SID</code>, <code style="color:var(--accent);">TWILIO_AUTH_TOKEN</code>, <code style="color:var(--accent);">TWILIO_FROM_NUMBER</code>, <code style="color:var(--accent);">TWILIO_WEBHOOK_BASE_URL</code></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ======= ALL CALLS ======= -->
+  <section class="page-section" id="sec-calls">
+    <div class="topbar">
+      <div>
+        <h1>All Calls</h1>
+        <p>Every call session recorded by the system</p>
+      </div>
+      <button class="btn btn-ghost" onclick="loadAllCalls()">⟳ Refresh</button>
+    </div>
+
+    <div class="card">
+      <div class="search-row">
+        <input id="callSearch" placeholder="🔍 Search call SID, phone, type…" oninput="filterCalls()" />
+        <select id="callStatusFlt" onchange="filterCalls()">
+          <option value="all">Any status</option>
+          <option value="active">Active</option>
+          <option value="ended">Ended</option>
+          <option value="transferred">Transferred</option>
+        </select>
+        <select id="callTransferFlt" onchange="filterCalls()">
+          <option value="all">All types</option>
+          <option value="transferred">Transferred to human</option>
+          <option value="not_transferred">AI handled</option>
+        </select>
+      </div>
+      <div id="callsSummaryText" style="font-size:0.82rem;color:var(--muted);margin-bottom:12px;"></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>Call SID</th><th>Contact Name</th><th>Phone</th><th>Type</th>
+            <th>Status</th><th>Turns</th><th>Started</th><th></th>
+          </tr></thead>
+          <tbody id="callsTableBody"></tbody>
+        </table>
+      </div>
+      <div id="callsEmpty" class="empty" style="display:none;"><div class="empty-icon">📞</div><p>No calls found.</p></div>
+    </div>
+  </section>
+
+
+  <!-- ======= TRANSCRIPTS ======= -->
+  <section class="page-section" id="sec-transcripts">
+    <div class="topbar">
+      <div>
+        <h1>Transcripts</h1>
+        <p>Full Q&A conversation transcripts stored for every call</p>
+      </div>
+    </div>
+    <div class="empty" id="transcriptPlaceholder"><div class="empty-icon">💬</div><p>Select a call from the <em>All Calls</em> tab or a campaign contact to view its transcript.</p></div>
+    <div id="transcriptContent" style="display:none;"></div>
+  </section>
+
+</main>
+
+<!-- ===== TRANSCRIPT MODAL ===== -->
+<div class="modal-overlay" id="transcriptModal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal()">✕ Close</button>
+    <h3 id="modalTitle">Conversation Transcript</h3>
+    <p class="sub" id="modalSub"></p>
+    <div id="modalBody"></div>
+  </div>
+</div>
+
+<!-- ===== TOAST AREA ===== -->
+<div class="toast-area" id="toastArea"></div>
+
+<script>
+  // ======================================================
+  // State
+  // ======================================================
+  const apiBase = '';
+  let allCalls = [];
+  let allCampaigns = [];
+  let selectedCampaignId = null;
+  let campaignContacts = [];
+  let campaignContactsAll = [];
+
+  // ======================================================
+  // Navigation
+  // ======================================================
+  function showSection(id, el) {
+    document.querySelectorAll('.page-section').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    document.getElementById('sec-' + id).classList.add('active');
+    if (el) el.classList.add('active');
+
+    if (id === 'dashboard') refreshDashboard();
+    if (id === 'campaigns') loadCampaigns();
+    if (id === 'calls') loadAllCalls();
+  }
+
+  // ======================================================
+  // Health check
+  // ======================================================
+  async function checkHealth() {
+    try {
+      const r = await fetch(`${apiBase}/health`);
+      const d = await r.json();
+      const ok = r.ok && d.status;
+      document.getElementById('sideHealthDot').className = 'health-dot' + (ok ? '' : ' offline');
+      document.getElementById('sideHealthText').textContent = ok ? 'Server Online' : 'Server Offline';
+      document.getElementById('sideHealthPill').className = 'health-pill' + (ok ? '' : ' offline');
+    } catch {
+      document.getElementById('sideHealthDot').className = 'health-dot offline';
+      document.getElementById('sideHealthText').textContent = 'Unreachable';
+      document.getElementById('sideHealthPill').className = 'health-pill offline';
+    }
+  }
+
+  // ======================================================
+  // Toast
+  // ======================================================
+  function toast(msg, type = 'info') {
+    const icons = { success: '✅', error: '❌', info: 'ℹ️' };
+    const t = document.createElement('div');
+    t.className = `toast ${type}`;
+    t.innerHTML = `<span>${icons[type]}</span><span>${msg}</span>`;
+    document.getElementById('toastArea').appendChild(t);
+    setTimeout(() => t.remove(), 4000);
+  }
+
+  // ======================================================
+  // Dashboard
+  // ======================================================
+  async function refreshDashboard() {
+    await Promise.all([loadDashboardStats(), loadActiveCalls()]);
+  }
+
+  async function loadDashboardStats() {
+    try {
+      const [cpRes, callRes] = await Promise.all([fetch(`${apiBase}/campaign/list`), fetch(`${apiBase}/calls`)]);
+      const campaigns = await cpRes.json();
+      const calls = await callRes.json();
+
+      let called = 0, pending = 0, failed = 0;
+      campaigns.forEach(c => {
+        called += (c.called || 0);
+        pending += (c.pending || 0);
+        failed += (c.failed || 0);
+      });
+
+      document.getElementById('st-campaigns').textContent = campaigns.length;
+      document.getElementById('st-called').textContent = called;
+      document.getElementById('st-pending').textContent = pending;
+      document.getElementById('st-failed').textContent = failed;
+      allCalls = calls;
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  async function loadActiveCalls() {
+    try {
+      const r = await fetch(`${apiBase}/calls`);
+      const calls = await r.json();
+      allCalls = calls;
+
+      const active = calls.filter(c => c.status === 'active' || c.status === 'transferred');
+      const completed = calls.filter(c => c.status === 'ended').slice(0, 6);
+
+      const activeWrap = document.getElementById('activeCallsWrap');
+      if (!active.length) {
+        activeWrap.innerHTML = '<div class="empty"><div class="empty-icon">📡</div><p>No active calls right now.</p></div>';
+      } else {
+        activeWrap.innerHTML = active.map(c => `
+          <div style="padding:12px 0;border-bottom:1px solid var(--border);">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <div>
+                <div style="font-weight:600;font-size:0.9rem;">${c.contact_name || 'Unknown'}</div>
+                <div style="font-size:0.8rem;color:var(--muted);">${c.contact_phone || c.caller_number || '—'}</div>
+              </div>
+              <div style="display:flex;gap:6px;align-items:center;">
+                <span class="badge badge-green">● Live</span>
+                <span class="badge badge-blue">Turns: ${c.turns}</span>
+              </div>
+            </div>
+          </div>`).join('');
+      }
+
+      const compWrap = document.getElementById('recentCompletedWrap');
+      if (!completed.length) {
+        compWrap.innerHTML = '<div class="empty"><div class="empty-icon">📄</div><p>No completed calls yet.</p></div>';
+      } else {
+        compWrap.innerHTML = completed.map(c => `
+          <div style="padding:11px 0;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
+            <div>
+              <div style="font-weight:600;font-size:0.88rem;">${c.contact_name || 'Unknown'}</div>
+              <div style="font-size:0.78rem;color:var(--muted);">${c.contact_phone || c.caller_number || '—'}</div>
+            </div>
+            <button class="btn btn-secondary" style="padding:6px 12px;font-size:0.78rem;" onclick="openTranscriptModal('${c.call_sid}', '${c.contact_name || 'Unknown'}', '${c.contact_phone || c.caller_number || ''}')">View</button>
+          </div>`).join('');
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  // ======================================================
+  // Campaigns
+  // ======================================================
+  async function loadCampaigns() {
+    try {
+      const r = await fetch(`${apiBase}/campaign/list`);
+      allCampaigns = await r.json();
+      renderCampaignList();
+    } catch (e) {
+      toast('Failed to load campaigns', 'error');
+    }
+  }
+
+  function renderCampaignList() {
+    const el = document.getElementById('campaignList');
+    if (!allCampaigns.length) {
+      el.innerHTML = '<div class="empty"><div class="empty-icon">📋</div><p>No campaigns yet.</p></div>';
+      return;
+    }
+    el.innerHTML = allCampaigns.map(c => `
+      <div class="campaign-card ${selectedCampaignId === c.id ? 'selected' : ''}" onclick="selectCampaign(${c.id}, '${escHtml(c.name)}')">
+        <div>
+          <div class="name">${escHtml(c.name)}</div>
+          <div class="meta">${c.total_contacts || 0} contacts · Created ${fmtDate(c.created_at)}</div>
+          <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;">
+            <span class="badge badge-gray">⏳ ${c.pending||0} pending</span>
+            <span class="badge badge-cyan">📞 ${c.calling||0} calling</span>
+            <span class="badge badge-green">✅ ${c.called||0} called</span>
+            ${c.failed ? `<span class="badge badge-red">❌ ${c.failed} failed</span>` : ''}
+          </div>
+        </div>
+        <div class="actions" onclick="event.stopPropagation()">
+          <button class="btn btn-success" style="padding:7px 12px;font-size:0.8rem;" onclick="selectCampaignAndCall(${c.id}, '${escHtml(c.name)}')">📞 Call All</button>
+        </div>
+      </div>`).join('');
+  }
+
+  async function selectCampaign(id, name) {
+    selectedCampaignId = id;
+    renderCampaignList();
+    document.getElementById('campaignDetailCard').style.display = '';
+    document.getElementById('noCampaignCard').style.display = 'none';
+    document.getElementById('campaignDetailTitle').textContent = name;
+    document.getElementById('contactTableBody').innerHTML = '<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--muted);">Loading…</td></tr>';
+
+    try {
+      const r = await fetch(`${apiBase}/campaign/${id}/contacts`);
+      campaignContactsAll = await r.json();
+      campaignContacts = [...campaignContactsAll];
+
+      const total = campaignContactsAll.length;
+      const done = campaignContactsAll.filter(c => c.contact_status === 'called').length;
+      document.getElementById('campaignDetailMeta').textContent = `${total} contacts · ${done} called`;
+      document.getElementById('campaignProgress').style.width = total ? `${Math.round(done/total*100)}%` : '0%';
+
+      filterContacts();
+    } catch (e) {
+      toast('Failed to load contacts', 'error');
+    }
+  }
+
+  function filterContacts() {
+    const q = (document.getElementById('contactSearch').value || '').toLowerCase();
+    const st = document.getElementById('contactStatusFilter').value;
+    campaignContacts = campaignContactsAll.filter(c => {
+      const matchQ = !q || (c.contact_name || '').toLowerCase().includes(q) || (c.contact_phone || '').includes(q);
+      const matchSt = st === 'all' || c.contact_status === st;
+      return matchQ && matchSt;
+    });
+    renderContactTable();
+  }
+
+  function renderContactTable() {
+    const tbody = document.getElementById('contactTableBody');
+    const empty = document.getElementById('contactsEmpty');
+    if (!campaignContacts.length) {
+      tbody.innerHTML = '';
+      empty.style.display = '';
+      return;
+    }
+    empty.style.display = 'none';
+    tbody.innerHTML = campaignContacts.map(c => {
+      const badge = statusBadge(c.contact_status);
+      const hasCall = !!c.call_sid;
+      return `<tr>
+        <td style="font-weight:600;">${escHtml(c.contact_name || '—')}</td>
+        <td class="muted">${escHtml(c.contact_phone || '—')}</td>
+        <td>${badge}</td>
+        <td class="muted">${c.turns || 0}</td>
+        <td>${hasCall
+          ? `<button class="btn btn-secondary" style="padding:5px 10px;font-size:0.78rem;" onclick="openTranscriptModal('${c.call_sid}','${escHtml(c.contact_name||'')}','${escHtml(c.contact_phone||'')}')">💬 View</button>`
+          : '<span style="color:var(--muted);font-size:0.78rem;">No call yet</span>'
+        }</td>
+      </tr>`;
+    }).join('');
+  }
+
+  async function callAllContacts() {
+    if (!selectedCampaignId) {
+      toast('Select a campaign first before calling.', 'error');
+      return;
+    }
+
+    const btn = document.getElementById('callAllBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Calling…';
+    try {
+      const fd = new FormData();
+      fd.append('max_calls', '100');
+      const r = await fetch(`${apiBase}/campaign/${selectedCampaignId}/call-all`, { method: 'POST', body: fd });
+      const text = await r.text();
+      let d;
+      try {
+        d = JSON.parse(text);
+      } catch {
+        d = null;
+      }
+
+      if (!r.ok) {
+        toast('Call failed: ' + (d && d.error ? d.error : text || r.statusText), 'error');
+      } else if (d && d.error) {
+        toast('❌ ' + d.error, 'error');
+      } else {
+        toast(`✅ ${d.calls_initiated} calls initiated${d.calls_failed ? ', ' + d.calls_failed + ' failed' : ''}`, 'success');
+        await selectCampaign(selectedCampaignId, document.getElementById('campaignDetailTitle').textContent);
+        loadCampaigns();
+      }
+    } catch (e) {
+      toast('Failed to initiate calls: ' + e.message, 'error');
+    }
+    btn.disabled = false;
+    btn.innerHTML = '📞 Call All';
+  }
+
+  async function selectCampaignAndCall(id, name) {
+    await selectCampaign(id, name);
+    showSection('campaigns', getCampaignsNavItem());
+    await callAllContacts();
+  }
+
+  function getCampaignsNavItem() {
+    return Array.from(document.querySelectorAll('.nav-item')).find(el => el.textContent.trim().startsWith('📋')) || null;
+  }
+
+  function goToCampaigns() {
+    showSection('campaigns', getCampaignsNavItem());
+    loadCampaigns();
+  }
+
+  // ======================================================
+  // Import
+  // ======================================================
+  let selectedFile = null;
+
+  function onFileSelect(input) {
+    selectedFile = input.files[0];
+    if (selectedFile) {
+      document.getElementById('fileSelectedLabel').textContent = '📄 ' + selectedFile.name;
+      document.getElementById('fileSelectedLabel').style.display = '';
+    }
+  }
+
+  // Drag & drop
+  const dz = document.getElementById('dropZone');
+  dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag-over'); });
+  dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
+  dz.addEventListener('drop', e => {
+    e.preventDefault();
+    dz.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file) {
+      selectedFile = file;
+      document.getElementById('fileSelectedLabel').textContent = '📄 ' + file.name;
+      document.getElementById('fileSelectedLabel').style.display = '';
+    }
+  });
+
+  async function importContacts() {
+    const name = document.getElementById('campaignName').value.trim();
+    const resultEl = document.getElementById('importResult');
+    if (!name) { toast('Please enter a campaign name', 'error'); return; }
+    if (!selectedFile) { toast('Please select a file', 'error'); return; }
+
+    const btn = document.getElementById('importBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Importing…';
+    resultEl.innerHTML = '';
+
+    try {
+      const fd = new FormData();
+      fd.append('name', name);
+      fd.append('file', selectedFile);
+      const r = await fetch(`${apiBase}/campaign/import`, { method: 'POST', body: fd });
+      const d = await r.json();
+      if (d.error) {
+        resultEl.innerHTML = `<div style="color:var(--red);background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2);border-radius:10px;padding:12px;font-size:0.875rem;">❌ ${escHtml(d.error)}</div>`;
+        toast('Import failed', 'error');
+      } else {
+        resultEl.innerHTML = `<div style="color:var(--green);background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.2);border-radius:10px;padding:14px;font-size:0.875rem;">
+          ✅ <strong>${d.imported_contacts} contacts</strong> imported into campaign <strong>"${escHtml(d.campaign_name)}"</strong> (ID: ${d.campaign_id})
+          <br/><br/><a href="#" onclick="goToCampaigns()" style="color:var(--accent);">→ Go to Campaigns to start calling</a>
+        </div>`;
+        toast(`✅ ${d.imported_contacts} contacts imported!`, 'success');
+        document.getElementById('campaignName').value = '';
+        selectedFile = null;
+        document.getElementById('fileSelectedLabel').style.display = 'none';
+      }
+    } catch (e) {
+      resultEl.innerHTML = `<div style="color:var(--red);">❌ Network error: ${e.message}</div>`;
+      toast('Import failed', 'error');
+    }
+    btn.disabled = false;
+    btn.innerHTML = '📤 Import & Create Campaign';
+  }
+
+  // ======================================================
+  // All Calls
+  // ======================================================
+  async function loadAllCalls() {
+    try {
+      const r = await fetch(`${apiBase}/calls`);
+      allCalls = await r.json();
+      filterCalls();
+    } catch (e) {
+      toast('Failed to load calls', 'error');
+    }
+  }
+
+  function filterCalls() {
+    const q = (document.getElementById('callSearch').value || '').toLowerCase();
+    const st = document.getElementById('callStatusFlt').value;
+    const tr = document.getElementById('callTransferFlt').value;
+
+    const filtered = allCalls.filter(c => {
+      const matchQ = !q || (c.call_sid||'').toLowerCase().includes(q) || (c.contact_name||'').toLowerCase().includes(q) ||
+                     (c.contact_phone||'').includes(q) || (c.caller_number||'').includes(q);
+      const matchSt = st === 'all' || c.status === st;
+      const matchTr = tr === 'all' || (tr === 'transferred' && c.was_transferred) || (tr === 'not_transferred' && !c.was_transferred);
+      return matchQ && matchSt && matchTr;
+    });
+
+    document.getElementById('callsSummaryText').textContent = `Showing ${filtered.length} of ${allCalls.length} calls`;
+    renderCallsTable(filtered);
+  }
+
+  function renderCallsTable(calls) {
+    const tbody = document.getElementById('callsTableBody');
+    const empty = document.getElementById('callsEmpty');
+    if (!calls.length) { tbody.innerHTML = ''; empty.style.display = ''; return; }
+    empty.style.display = 'none';
+    tbody.innerHTML = calls.map(c => `
+      <tr>
+        <td class="muted" style="font-family:monospace;font-size:0.78rem;">${escHtml(c.call_sid)}</td>
+        <td style="font-weight:600;">${escHtml(c.contact_name || '—')}</td>
+        <td class="muted">${escHtml(c.contact_phone || c.caller_number || '—')}</td>
+        <td class="muted">${c.business_type || '—'}</td>
+        <td>${statusBadge(c.status)}</td>
+        <td class="muted">${c.turns || 0}</td>
+        <td class="muted">${fmtDate(c.started_at)}</td>
+        <td><button class="btn btn-secondary" style="padding:5px 10px;font-size:0.78rem;" onclick="openTranscriptModal('${escHtml(c.call_sid)}','${escHtml(c.contact_name||'')}','${escHtml(c.contact_phone||c.caller_number||'')}')">💬 Transcript</button></td>
+      </tr>`).join('');
+  }
+
+  // ======================================================
+  // Transcript Modal
+  // ======================================================
+  async function openTranscriptModal(callSid, name, phone) {
+    document.getElementById('modalTitle').textContent = `${name || 'Unknown'} — Conversation`;
+    document.getElementById('modalSub').textContent = `📞 ${phone || callSid} · Call SID: ${callSid}`;
+    document.getElementById('modalBody').innerHTML = '<div class="empty"><div class="spinner" style="width:24px;height:24px;border-width:3px;"></div></div>';
+    document.getElementById('transcriptModal').classList.add('open');
+
+    try {
+      const r = await fetch(`/transcript/${callSid}`);
+      const turns = await r.json();
+      if (!turns.length) {
+        document.getElementById('modalBody').innerHTML = '<div class="empty"><div class="empty-icon">💬</div><p>No conversation data yet.</p></div>';
+        return;
+      }
+      document.getElementById('modalBody').innerHTML = `
+        <div class="transcript-panel">
+          ${turns.map((t, i) => `
+            <div class="qa-turn">
+              <div class="qa-turn-num">Turn ${i+1} · ${fmtDate(t.timestamp)}</div>
+              <div class="qa-q"><label>👤 Caller</label>${escHtml(t.question)}</div>
+              <div class="qa-a"><label>🤖 AI Agent</label>${t.transferred_to_human ? '<em>Transferred to human agent</em>' : escHtml(t.answer)}</div>
+            </div>`).join('')}
+        </div>
+        <div style="margin-top:14px;display:flex;gap:10px;">
+          <a href="/transcript/${callSid}/text" target="_blank" class="btn btn-ghost" style="font-size:0.82rem;">⬇ Download .txt</a>
+        </div>`;
+    } catch (e) {
+      document.getElementById('modalBody').innerHTML = `<div class="empty"><p>Failed to load transcript: ${e.message}</p></div>`;
+    }
+  }
+
+  function closeModal() {
+    document.getElementById('transcriptModal').classList.remove('open');
+  }
+
+  // Close modal on overlay click
+  document.getElementById('transcriptModal').addEventListener('click', function(e) {
+    if (e.target === this) closeModal();
+  });
+
+  // ======================================================
+  // Helpers
+  // ======================================================
+  function statusBadge(status) {
+    const map = {
+      active: '<span class="badge badge-green">● Active</span>',
+      ended: '<span class="badge badge-gray">✓ Ended</span>',
+      transferred: '<span class="badge badge-yellow">⇄ Transferred</span>',
+      pending: '<span class="badge badge-gray">⏳ Pending</span>',
+      calling: '<span class="badge badge-cyan">📞 Calling</span>',
+      called: '<span class="badge badge-green">✅ Called</span>',
+      failed: '<span class="badge badge-red">❌ Failed</span>',
+    };
+    return map[status] || `<span class="badge badge-gray">${status || '—'}</span>`;
+  }
+
+  function fmtDate(iso) {
+    if (!iso) return '—';
+    try { return new Date(iso).toLocaleString(); } catch { return iso; }
+  }
+
+  function escHtml(s) {
+    if (!s) return '';
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // ======================================================
+  // Init
+  // ======================================================
+  document.addEventListener('DOMContentLoaded', () => {
+    checkHealth();
+    refreshDashboard();
+    setInterval(loadActiveCalls, 10000);
+    setInterval(checkHealth, 30000);
+  });
+</script>
+</body>
+</html>

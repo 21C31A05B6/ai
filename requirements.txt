@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+twilio
+python-multipart
+groq
+openpyxl
+aiohttp
+psycopg2-binary
+python-dotenv
