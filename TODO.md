@@ -7,29 +7,28 @@
 - [x] Read admin UI (app/static/index.html)
 
 ## Phase 2 — Campaign import + DB linkage
-- [ ] Extend DB schema for contacts + outbound campaign call mapping
+- [x] Extend DB schema for contacts + outbound campaign call mapping
 - [x] Add CSV parsing helper (app/campaign_logic.py)
-- [ ] Add CSV upload endpoint
-
-- [ ] Add outbound start campaign + dialer
-- [ ] Add Twilio outbound integration (REST) + metadata linkage
-- [ ] Update admin UI to show name + phone with calls
-
-- [ ] Add CSV upload + parsing endpoint
-- [ ] Add endpoints to start campaign and dial next contact
+- [x] Add CSV upload endpoint
+- [x] Add outbound start campaign + dialer
+- [x] Add Twilio outbound integration (REST) + metadata linkage
+- [x] Update admin UI to show name + phone with calls
+- [x] Add CSV upload + parsing endpoint
+- [x] Add endpoints to start campaign and dial next contact
 
 ## Phase 3 — Twilio outbound dialing
-- [ ] Add Twilio REST client integration (env vars)
-- [ ] Initiate outbound calls and associate Twilio CallSid with contact
-- [ ] Ensure inbound webhook logs include contact name + phone
+- [x] Add Twilio REST client integration (env vars)
+- [x] Initiate outbound calls and associate Twilio CallSid with contact
+- [x] Ensure inbound webhook logs include contact name + phone
 
 ## Phase 4 — Admin UI updates
-- [ ] Update /calls and/or add campaign-specific view to display contact name + phone
-- [ ] Ensure transcript endpoints include contact name + phone
+- [x] Update /calls and/or add campaign-specific view to display contact name + phone
+- [x] Ensure transcript endpoints include contact name + phone
 
 ## Phase 5 — Testing
-- [ ] Start server locally
-- [ ] Upload sample CSV
-- [ ] Trigger campaign start (dry test if needed)
-- [ ] Verify DB records + transcript rendering
+- [x] Start server locally
+- [x] Upload sample CSV
+- [x] Trigger campaign start (dry test if needed)
+- [x] Verify DB records + transcript rendering
+
 
