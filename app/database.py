@@ -5,7 +5,7 @@ Connection string is read from DATABASE_URL env var (set in .env).
 
 import os
 from contextlib import contextmanager
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 import psycopg2
@@ -60,6 +60,14 @@ def _execute_returning(sql: str, params=()):
         cur = conn.cursor()
         cur.execute(sql, params)
         return cur.fetchone()[0]
+
+
+def _ist_now() -> str:
+    """IST formatted exactly as: YYYY-MM-DD HH:MM:SS"""
+    # IST = UTC + 5:30
+    return (datetime.now(timezone.utc) + timedelta(hours=5, minutes=30)).strftime(
+        "%Y-%m-%d %H:%M:%S"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -140,8 +148,8 @@ def update_call_status(call_sid, caller_number, business_type, status):
     row = _fetchone(
         "SELECT started_at FROM call_sessions WHERE call_sid = %s", (call_sid,)
     )
-    started_at = row["started_at"] if row else datetime.utcnow().isoformat()
-    updated_at = datetime.utcnow().isoformat()
+    started_at = row["started_at"] if row else _ist_now()
+    updated_at = _ist_now()
     _execute(
         """
         INSERT INTO call_sessions (call_sid, caller_number, business_type, status, started_at, updated_at)
@@ -156,15 +164,29 @@ def update_call_status(call_sid, caller_number, business_type, status):
     )
 
 
-def log_turn(call_sid, caller_number, business_type, user_said, ai_replied, transferred=False):
+def log_turn(
+    call_sid,
+    caller_number,
+    business_type,
+    user_said,
+    ai_replied,
+    transferred=False,
+):
     _execute(
         """
         INSERT INTO call_logs
           (call_sid, caller_number, business_type, user_said, ai_replied, transferred, timestamp)
         VALUES (%s, %s, %s, %s, %s, %s, %s)
         """,
-        (call_sid, caller_number, business_type, user_said, ai_replied,
-         int(transferred), datetime.utcnow().isoformat()),
+        (
+            call_sid,
+            caller_number,
+            business_type,
+            user_said,
+            ai_replied,
+            int(transferred),
+            _ist_now(),
+        ),
     )
 
 
@@ -173,14 +195,16 @@ def log_turn(call_sid, caller_number, business_type, user_said, ai_replied, tran
 # ---------------------------------------------------------------------------
 
 def create_campaign(name: str) -> int:
-    return int(_execute_returning(
-        "INSERT INTO campaigns (name, created_at) VALUES (%s, %s) RETURNING id",
-        (name, datetime.utcnow().isoformat()),
-    ))
+    return int(
+        _execute_returning(
+            "INSERT INTO campaigns (name, created_at) VALUES (%s, %s) RETURNING id",
+            (name, _ist_now()),
+        )
+    )
 
 
 def add_campaign_contacts(campaign_id: int, contacts: list[tuple[str, str]]):
-    now = datetime.utcnow().isoformat()
+    now = _ist_now()
     with _conn() as conn:
         cur = conn.cursor()
         for name, phone in contacts:
@@ -216,11 +240,13 @@ def mark_contact_status(campaign_id: int, campaign_contact_id: int, status: str)
         SET status = %s, updated_at = %s
         WHERE campaign_id = %s AND id = %s
         """,
-        (status, datetime.utcnow().isoformat(), campaign_id, campaign_contact_id),
+        (status, _ist_now(), campaign_id, campaign_contact_id),
     )
 
 
-def get_campaign_contact_by_id(campaign_id: int, campaign_contact_id: int) -> Optional[tuple[str, str]]:
+def get_campaign_contact_by_id(
+    campaign_id: int, campaign_contact_id: int
+) -> Optional[tuple[str, str]]:
     row = _fetchone(
         "SELECT name, phone FROM campaign_contacts WHERE campaign_id = %s AND id = %s",
         (campaign_id, campaign_contact_id),
@@ -246,8 +272,8 @@ def create_call_session_for_contact(
     business_type: str,
     status: str,
 ) -> str:
-    now = datetime.utcnow().isoformat()
-    call_sid = f"SIM{int(datetime.utcnow().timestamp())}{campaign_contact_id}"
+    now = _ist_now()
+    call_sid = f"SIM{int(datetime.now(timezone.utc).timestamp())}{campaign_contact_id}"
     _execute(
         """
         INSERT INTO call_sessions
@@ -269,7 +295,7 @@ def set_call_contact_map(
     contact_name: str,
     contact_phone: str,
 ):
-    now = datetime.utcnow().isoformat()
+    now = _ist_now()
     _execute(
         """
         INSERT INTO call_contact_map
@@ -414,15 +440,18 @@ def get_campaign_report(campaign_id: int):
         conversation = []
         if c.get("call_sid"):
             conversation = get_transcript(c["call_sid"])
-        report.append({
-            "contact_id": c["contact_id"],
-            "name": c["contact_name"] or "Unknown",
-            "phone": c["contact_phone"],
-            "contact_status": c["contact_status"],
-            "call_status": c["call_status"],
-            "call_sid": c["call_sid"],
-            "started_at": c["started_at"],
-            "turns": c["turns"] or 0,
-            "conversation": conversation,
-        })
+        report.append(
+            {
+                "contact_id": c["contact_id"],
+                "name": c["contact_name"] or "Unknown",
+                "phone": c["contact_phone"],
+                "contact_status": c["contact_status"],
+                "call_status": c["call_status"],
+                "call_sid": c["call_sid"],
+                "started_at": c["started_at"],
+                "turns": c["turns"] or 0,
+                "conversation": conversation,
+            }
+        )
     return report
+
