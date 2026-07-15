@@ -6,7 +6,7 @@ import json
 import os
 import wave
 from fastapi import FastAPI, Form, WebSocket, WebSocketDisconnect
-from fastapi.responses import Response, JSONResponse, HTMLResponse
+from fastapi.responses import Response, JSONResponse, HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from twilio.twiml.voice_response import VoiceResponse, Gather
 
@@ -34,11 +34,11 @@ from app.database import (
 
 from app.campaign_endpoints import router as campaign_router
 from app.campaign_simulation_runner import run_conversation_simulation
-
-
+from app.interview_endpoints import router as interview_router
 
 
 AUDIO_DIR = os.path.join(os.path.dirname(__file__), 'streamed_audio')
+
 TWILIO_MEDIA_STREAM_URL = os.environ.get('TWILIO_MEDIA_STREAM_URL')
 
 if not os.path.exists(AUDIO_DIR):
@@ -49,9 +49,11 @@ stream_sessions = {}
 app = FastAPI(title="AI Voice Agent")
 
 app.include_router(campaign_router)
+app.include_router(interview_router)
 
 
 HUMAN_TRANSFER_NUMBER = os.environ.get("HUMAN_TRANSFER_NUMBER", "+10000000000")
+
 
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
@@ -63,10 +65,9 @@ def health():
     return {"status": "AI Voice Agent is running"}
 
 
-@app.get("/", response_class=HTMLResponse)
+@app.get("/")
 def homepage():
-    with open("app/static/user.html", "r", encoding="utf-8") as f:
-        return HTMLResponse(content=f.read())
+    return RedirectResponse(url="/admin")
 
 
 @app.get("/admin", response_class=HTMLResponse)
@@ -75,65 +76,7 @@ def admin_dashboard():
         return HTMLResponse(content=f.read())
 
 
-@app.post("/simulate-call/start")
-async def simulate_call_start(payload: dict):
 
-    caller_number = payload.get('caller_number', 'unknown')
-    call_sid = f"SIM{int(datetime.utcnow().timestamp())}"
-    greeting = GREETING
-    update_call_status(call_sid, caller_number, 'company', 'active')
-    log_turn(call_sid, caller_number, 'company', 'CALL STARTED', greeting, transferred=False)
-    return JSONResponse({
-        "call_sid": call_sid,
-        "caller_number": caller_number,
-        "business_type": "company",
-        "greeting": greeting,
-    })
-
-
-@app.post("/simulate-call/question")
-async def simulate_call_question(payload: dict):
-    call_sid = payload.get('call_sid')
-    caller_number = payload.get('caller_number', 'unknown')
-    user_text = payload.get('user_text', '')
-    if not call_sid:
-        return JSONResponse({"detail": "call_sid is required"}, status_code=400)
-    if not user_text.strip():
-        return JSONResponse({"detail": "user_text is required"}, status_code=400)
-
-    if wants_human(user_text):
-        answer = "Certainly. Please hold while I transfer your call."
-        transferred = True
-        update_call_status(call_sid, caller_number, 'company', 'transferred')
-    else:
-        answer, _ = get_answer('company', user_text)
-        transferred = False
-        update_call_status(call_sid, caller_number, 'company', 'active')
-
-    log_turn(call_sid, caller_number, 'company', user_text, answer, transferred=transferred)
-    return JSONResponse({
-        "call_sid": call_sid,
-        "caller_number": caller_number,
-        "business_type": "company",
-        "user_text": user_text,
-        "answer": answer,
-        "transferred": transferred,
-    })
-
-
-@app.post("/simulate-call/end")
-async def simulate_call_end(payload: dict):
-    call_sid = payload.get('call_sid')
-    caller_number = payload.get('caller_number', 'unknown')
-    if not call_sid:
-        return JSONResponse({"detail": "call_sid is required"}, status_code=400)
-
-    update_call_status(call_sid, caller_number, 'company', 'ended')
-    log_turn(call_sid, caller_number, 'company', '[CALL ENDED]', 'Call ended by user.', transferred=False)
-    return JSONResponse({
-        "call_sid": call_sid,
-        "status": "ended",
-    })
 
 
 @app.post("/voice/{business_type}")

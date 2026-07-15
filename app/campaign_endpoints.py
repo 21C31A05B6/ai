@@ -110,7 +110,10 @@ async def call_all_contacts(
     from_phone = os.environ.get("TWILIO_FROM_NUMBER", "")
     webhook_base = os.environ.get("TWILIO_WEBHOOK_BASE_URL", "")
 
-    use_simulation = not (account_sid and auth_token and from_phone and webhook_base)
+    if not (account_sid and auth_token and from_phone and webhook_base):
+        return JSONResponse({
+            "error": "Missing Twilio credentials in .env. Outbound voice calling requires TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_FROM_NUMBER, and TWILIO_WEBHOOK_BASE_URL to be set."
+        }, status_code=400)
 
     called = []
     failed = []
@@ -124,32 +127,24 @@ async def call_all_contacts(
         mark_contact_status(campaign_id, contact_id, "calling")
 
         try:
-            if use_simulation:
-                from app.campaign_simulation_runner import run_conversation_simulation
-                call_sid = run_conversation_simulation(
-                    campaign_id=campaign_id,
-                    campaign_contact_id=contact_id,
-                    business_type="company",
-                )
-            else:
-                call_sid = create_outbound_call(
-                    to_phone=contact_phone,
-                    from_phone=from_phone,
-                    webhook_base_url=webhook_base,
-                    business_type="company",
-                    contact_id=contact_id,
-                )
+            call_sid = create_outbound_call(
+                to_phone=contact_phone,
+                from_phone=from_phone,
+                webhook_base_url=webhook_base,
+                business_type="company",
+                contact_id=contact_id,
+            )
 
-                # Map the Twilio CallSid back to this contact
-                set_call_contact_map(
-                    call_sid=call_sid,
-                    campaign_id=campaign_id,
-                    campaign_contact_id=contact_id,
-                    contact_name=contact_name,
-                    contact_phone=contact_phone,
-                )
+            # Map the Twilio CallSid back to this contact
+            set_call_contact_map(
+                call_sid=call_sid,
+                campaign_id=campaign_id,
+                campaign_contact_id=contact_id,
+                contact_name=contact_name,
+                contact_phone=contact_phone,
+            )
 
-                mark_contact_status(campaign_id, contact_id, "called")
+            mark_contact_status(campaign_id, contact_id, "called")
 
             called.append({
                 "contact_id": contact_id,
@@ -173,7 +168,7 @@ async def call_all_contacts(
         "calls_failed": len(failed),
         "called": called,
         "failed": failed,
-        "simulated": use_simulation,
+        "simulated": False,
     })
 
 
@@ -197,37 +192,32 @@ async def call_one_contact(campaign_id: int, contact_id: int):
     from_phone = os.environ.get("TWILIO_FROM_NUMBER", "")
     webhook_base = os.environ.get("TWILIO_WEBHOOK_BASE_URL", "")
 
-    use_simulation = not (account_sid and auth_token and from_phone and webhook_base)
+    if not (account_sid and auth_token and from_phone and webhook_base):
+        return JSONResponse({
+            "error": "Missing Twilio credentials in .env. Outbound voice calling requires TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_FROM_NUMBER, and TWILIO_WEBHOOK_BASE_URL to be set."
+        }, status_code=400)
 
     try:
-        if use_simulation:
-            from app.campaign_simulation_runner import run_conversation_simulation
-            call_sid = run_conversation_simulation(
-                campaign_id=campaign_id,
-                campaign_contact_id=contact_id,
-                business_type="company",
-            )
-        else:
-            call_sid = create_outbound_call(
-                to_phone=contact_phone,
-                from_phone=from_phone,
-                webhook_base_url=webhook_base,
-                business_type="company",
-                contact_id=contact_id,
-            )
-            set_call_contact_map(
-                call_sid=call_sid,
-                campaign_id=campaign_id,
-                campaign_contact_id=contact_id,
-                contact_name=contact_name,
-                contact_phone=contact_phone,
-            )
-            mark_contact_status(campaign_id, contact_id, "called")
+        call_sid = create_outbound_call(
+            to_phone=contact_phone,
+            from_phone=from_phone,
+            webhook_base_url=webhook_base,
+            business_type="company",
+            contact_id=contact_id,
+        )
+        set_call_contact_map(
+            call_sid=call_sid,
+            campaign_id=campaign_id,
+            campaign_contact_id=contact_id,
+            contact_name=contact_name,
+            contact_phone=contact_phone,
+        )
+        mark_contact_status(campaign_id, contact_id, "called")
         return JSONResponse({
             "call_sid": call_sid,
             "contact_name": contact_name,
             "contact_phone": contact_phone,
-            "simulated": use_simulation,
+            "simulated": False,
         })
     except Exception as exc:
         mark_contact_status(campaign_id, contact_id, "failed")
